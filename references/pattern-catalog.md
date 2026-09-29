@@ -246,14 +246,14 @@ single matches usually not.
 **Problem:** ChatGPT and most LLMs output typographic Unicode quotes and apostrophes by default. These are invisible in rendered HTML but detectable in raw text and differ from what humans type on keyboards.
 
 **Characters to replace (mandatory — see Step 4):**
-- `”` (U+201C) and `”` (U+201D) → `”` straight double quote
-- `'` (U+2018) and `'` (U+2019) → `'` straight single quote / apostrophe
+- `“` (U+201C) and `”` (U+201D) → `"` straight double quote
+- `‘` (U+2018) and `’` (U+2019) → `'` straight single quote / apostrophe
 
 **Before:**
-> He said “the project is on track” but others disagreed. It's the team's call.
+> He said “the project is on track” but others disagreed. It’s the team’s call.
 
 **After:**
-> He said “the project is on track” but others disagreed. It's the team's call.
+> He said "the project is on track" but others disagreed. It's the team's call.
 
 
 ## COMMUNICATION PATTERNS
