@@ -12,6 +12,10 @@ attribution:
     stylometric discriminator beyond perplexity.
   - Removed in v2.4.0: original pattern 25 "Hyphenated Word Pair Overuse" — no empirical
     support and produced grammatically worse output.
+  - Pattern 26 (Unicode Typography and Invisible Characters) added — covers mandatory
+    substitutions (em dash, en dash, curly quotes, true ellipsis, non-breaking/zero-width
+    spaces) and decorative symbol replacements (arrows, special bullets, math operators in
+    prose). Mandatory subset enforced in SKILL.md Step 4.
 ---
 
 # Pattern catalog
@@ -237,15 +241,19 @@ single matches usually not.
 > The product launches in Q3. User research showed a preference for simplicity. Next step: schedule a follow-up meeting.
 
 
-### 18. Curly Quotation Marks
+### 18. Curly Quotes and Smart Apostrophes
 
-**Problem:** ChatGPT uses curly quotes (“...”) instead of straight quotes ("...").
+**Problem:** ChatGPT and most LLMs output typographic Unicode quotes and apostrophes by default. These are invisible in rendered HTML but detectable in raw text and differ from what humans type on keyboards.
+
+**Characters to replace (mandatory — see Step 4):**
+- `”` (U+201C) and `”` (U+201D) → `”` straight double quote
+- `'` (U+2018) and `'` (U+2019) → `'` straight single quote / apostrophe
 
 **Before:**
-> He said “the project is on track” but others disagreed.
+> He said “the project is on track” but others disagreed. It's the team's call.
 
 **After:**
-> He said "the project is on track" but others disagreed.
+> He said “the project is on track” but others disagreed. It's the team's call.
 
 
 ## COMMUNICATION PATTERNS
@@ -321,6 +329,65 @@ single matches usually not.
 **After:**
 > The company plans to open two more locations next year.
 
+
+### 26. Unicode Typography and Invisible Characters
+
+**Problem:** AI outputs substitute Unicode typographic characters for plain ASCII equivalents. Some are invisible (non-breaking space, zero-width space) and cause encoding or layout bugs. Others are visible but signal AI generation.
+
+**Step 0.5 — Mojibake pre-flight (run FIRST, before Step 4):**
+
+Mojibake happens when UTF-8 text is read with a mismatched charset (most often Windows-1252/Latin-1). Fix these corrupted sequences to correct Unicode first — Step 4 will then normalize them to plain ASCII.
+
+| Corrupted sequence | Correct character | Unicode |
+|---|---|---|
+| `â€"` | `–` | U+2013 en dash |
+| `â€"` | `—` | U+2014 em dash |
+| `â€™` | `'` | U+2019 right single quote |
+| `â€˜` | `'` | U+2018 left single quote |
+| `â€œ` | `"` | U+201C left double quote |
+| `â€` | `"` | U+201D right double quote |
+| `â€¢` | `•` | U+2022 bullet |
+| `Â·` | `·` | U+00B7 middle dot |
+| `Â ` | ` ` | regular space (double-encoded NBSP) |
+| `Ã©` | `é` | U+00E9 |
+| `Ã¨` | `è` | U+00E8 |
+| `Ã ` | `à` | U+00E0 |
+| `Ã§` | `ç` | U+00E7 |
+| `Ã‰` | `É` | U+00C9 |
+
+Also fix digit-adjacent quote pairs used as range dashes:
+- `"` (U+201C) immediately after a digit → `–` (en dash)
+- `"` (U+201D) immediately after a digit → `–` (en dash)
+
+**Mandatory substitutions (see Step 4 — run after mojibake pre-flight):**
+
+| AI Output | Unicode | Plain replacement |
+|-----------|---------|-------------------|
+| `—` em dash | U+2014 | ` - ` spaced hyphen |
+| `–` en dash | U+2013 | `-` or ` - ` |
+| `…` true ellipsis | U+2026 | `...` |
+| `"` `"` curly doubles | U+201C/D | `"` |
+| `'` `'` curly singles | U+2018/9 | `'` |
+| non-breaking space | U+00A0 | regular space |
+| zero-width space | U+200B | remove |
+
+**Decorative symbols in prose (fix when not in code or data):**
+
+| Symbol | Context | Fix |
+|--------|---------|-----|
+| `→` (U+2192) | Used as "to" or "leads to" in prose | spell it out or use `->` |
+| `×` (U+00D7) | Used as "x" multiplier in prose | use "x" or "by" |
+| `•` `◦` `▪` special bullets | Non-standard list markers | use plain `-` or `*` |
+| `✓` `✅` checkmarks | Decorative in prose | remove or reword |
+| `©` `®` `™` | Not part of a legal/brand requirement | remove |
+| `½` `¼` `¾` fractions | Non-code prose | spell out or use `/` |
+| `≈` `≠` `≤` `≥` | Non-math prose | spell out ("about", "is not", "at most") |
+
+**Before:**
+> The process → better results — it's that simple. Cost savings: ≈30% × current spend.
+
+**After:**
+> The process leads to better results. Cost savings are roughly 30% of current spend.
 
 ### 25. Uniform Sentence Rhythm
 
