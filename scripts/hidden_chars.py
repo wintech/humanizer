@@ -7,8 +7,10 @@ Usage:
   python hidden_chars.py - --fix < in    # read stdin, write cleaned text to stdout
 
 Covers: zero-width / invisible chars, bidi controls, Unicode tag chars, stray variation
-selectors, non-breaking and odd-width spaces, curly quotes, typographic dashes, ellipsis.
-Emoji sequences keep their ZWJ (U+200D) and variation selectors.
+selectors, non-breaking and odd-width spaces, curly quotes, typographic dashes, ellipsis,
+and ASCII "--" used as a dash ("word -- word", "word--word").
+Emoji sequences keep their ZWJ (U+200D) and variation selectors. The "--" check skips
+code (fenced blocks and inline backticks), CLI flags (--fix), HTML comments and "---" rules.
 """
 import re
 import sys
@@ -36,6 +38,14 @@ SIMPLE = {
 EM_DASHES = "—―"
 EN_DASH = "–"
 FLAGGED = REMOVE | EMOJI_JOINERS | SPACES | LINE_BREAKS | set(SIMPLE) | {0x2013, 0x2014, 0x2015}
+
+# ASCII "--" standing in for an em dash: spaced ("a -- b") or tight between words ("a--b").
+# Not matched: "---" rules, "<!--" / "-->", CLI flags ("--fix").
+DOUBLE_HYPHEN = "--"
+DOUBLE_HYPHEN_RE = re.compile(
+    r"(?<=[^\s<!-]) +--(?![->]) +(?=\S)"
+    r"|(?<=[A-Za-z0-9.,;:)\]\"'])--(?=[A-Za-z0-9(\[\"'])")
+CODE_RE = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
 
 
 def is_emoji(ch):
@@ -70,7 +80,17 @@ def fix(text):
     # En dash in numeric ranges -> hyphen; other dashes -> spaced hyphen.
     text = re.sub(rf"(?<=\d)\s*{EN_DASH}\s*(?=\d)", "-", text)
     text = re.sub(rf"[ \t]*[{EM_DASHES}{EN_DASH}][ \t]*", " - ", text)
+    for start, end in reversed(double_hyphen_spans(text)):
+        is_range = text[start - 1].isdigit() and text[end:end + 1].isdigit()
+        text = text[:start] + ("-" if is_range else " - ") + text[end:]
     return text
+
+
+def double_hyphen_spans(text):
+    """Spans of ASCII "--" used as a dash, outside code."""
+    code = [m.span() for m in CODE_RE.finditer(text)]
+    return [m.span() for m in DOUBLE_HYPHEN_RE.finditer(text)
+            if not any(s <= m.start() < e for s, e in code)]
 
 
 def scan(text):
@@ -86,6 +106,12 @@ def scan(text):
             where.setdefault(ch, [])
             if len(where[ch]) < 5:
                 where[ch].append(f"{ln}:{col}")
+    for start, _ in double_hyphen_spans(text):
+        counts[DOUBLE_HYPHEN] += 1
+        where.setdefault(DOUBLE_HYPHEN, [])
+        if len(where[DOUBLE_HYPHEN]) < 5:
+            line_start = text.rfind("\n", 0, start) + 1
+            where[DOUBLE_HYPHEN].append(f"{text.count(chr(10), 0, start) + 1}:{start - line_start + 1}")
     return counts, where
 
 
@@ -95,8 +121,11 @@ def report(counts, where, stream):
         return
     print(f"hidden-chars: {sum(counts.values())} found", file=stream)
     for ch, n in counts.most_common():
-        name = unicodedata.name(ch, "UNKNOWN")
-        print(f"  U+{ord(ch):04X} {name:<32} x{n:<4} at {', '.join(where[ch])}", file=stream)
+        if ch == DOUBLE_HYPHEN:
+            code, name = "  --  ", "ASCII DOUBLE HYPHEN AS DASH"
+        else:
+            code, name = f"U+{ord(ch):04X}", unicodedata.name(ch, "UNKNOWN")
+        print(f"  {code} {name:<32} x{n:<4} at {', '.join(where[ch])}", file=stream)
 
 
 def main():

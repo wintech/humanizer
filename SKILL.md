@@ -104,6 +104,7 @@ What the script handles:
 | En dash | U+2013 | `-` between digits (ranges), else ` - ` |
 | Other hyphens, minus | U+2010, U+2011, U+2012, U+2212 | `-` |
 | Ellipsis | U+2026 | `...` |
+| ASCII `--` used as a dash | `word -- word`, `word--word` (skips code, `--flags`, `<!-- -->`, `---` rules) | `-` between digits, else ` - ` |
 
 Voice exception: if Step 2 finds the writer deliberately uses em dashes, the fix still runs here; restore them by hand only when the user asks.
 
